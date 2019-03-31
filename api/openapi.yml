@@ -1,0 +1,291 @@
+openapi: 3.0.0
+info:
+  title: Form3 Payments API
+  version: 1.0.0
+servers:
+  - url: 'http://localhost:8080/v1'
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Returns basic service health information
+      parameters:
+        - $ref: '#/components/parameters/accept'
+      responses:
+        '200':
+          $ref: '#/components/responses/Health'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /metrics:
+    get:
+      operationId: getMetrics
+      summary: Returns real time Prometheus metrics
+      parameters:
+        - $ref: '#/components/parameters/accept'
+      responses:
+        '200':
+          $ref: '#/components/responses/Metrics'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  '/payments':
+    get:
+      operationId: getPayments
+      summary: Returns a collection of payment resources
+      parameters:
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/size'
+        - $ref: '#/components/parameters/accept'
+      responses:
+        '200':
+          $ref: '#/components/responses/Payments'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createPayment
+      summary: Creates a new payment
+      parameters:
+        - $ref: '#/components/parameters/accept'
+      requestBody:
+        description: a new payment
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Payment'
+      responses:
+        '201':
+          $ref: '#/components/responses/Payment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  '/payments/{paymentId}':
+    get:
+      operationId: getPayment
+      summary: Returns a payment
+      parameters:
+        - $ref: '#/components/parameters/paymentId'
+        - $ref: '#/components/parameters/accept'
+      responses:
+        '200':
+          $ref: '#/components/responses/Payment'
+        '400':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deletePayment
+      summary: Deletes a payment
+      parameters:
+        - $ref: '#/components/parameters/paymentId'
+        - $ref: '#/components/parameters/version'
+        - $ref: '#/components/parameters/accept'
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: updatePayment
+      summary: Updates a payment
+      parameters:
+        - $ref: '#/components/parameters/paymentId'
+        - $ref: '#/components/parameters/accept'
+      requestBody:
+        description: a new payment version
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Payment'
+      responses:
+        '200':
+          $ref: '#/components/responses/Payment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    accept:
+      name: accept
+      in: header
+      description: The type of response the client is able to process 
+      required: true
+      schema:
+        type: string
+    paymentId:
+      name: paymentId
+      in: path
+      description: a payment unique identifier
+      required: true
+      schema:
+        type: string
+    version:
+      name: version
+      in: query
+      description: a payment version
+      required: true
+      schema:
+        type: integer
+    from:
+      name: from
+      in: query
+      description: return items starting at this index
+      required: false
+      schema:
+        type: integer
+    size:
+      name: size
+      in: query
+      description: return that number of items
+      required: false
+      schema:
+        type: integer
+  responses:
+    InternalError:
+      description: a server internal error
+      content:
+        application/json:
+          schema:
+             $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: an invalid client request
+      content:
+        application/json:
+          schema:
+             $ref: '#/components/schemas/Error'
+    NotFound:
+      description: the requested resource was not found
+      content:
+        application/json:
+          schema:
+             $ref: '#/components/schemas/Error'
+    Conflict:
+      description: there is a new version for that resource, possibly from a concurrent modification
+      content:
+        application/json:
+          schema:
+             $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: a rate limit was hit by the client
+      content:
+        application/json:
+          schema:
+             $ref: '#/components/schemas/Error'
+    NoContent:
+      description: the response was accepted, but returned no data
+      content:
+        application/json: {}
+    NewPayment:
+      description: a new payment
+      content:
+        application/json:
+          schema:
+             $ref: '#/components/schemas/Payment'
+    Payment:
+      description: an existing payment
+      content:
+        application/json:
+          schema:
+            properties:
+              data:
+                $ref: '#/components/schemas/Payment'
+    Payments:
+      description: a collection of payments
+      content:
+        application/json:
+          schema:
+            properties:
+              data:
+                $ref: '#/components/schemas/Payments'
+              links:
+                $ref: '#/components/schemas/Links'
+    Health:
+      description: health status
+      content:
+        application/json:
+          schema:
+             $ref: '#/components/schemas/Health'
+    Metrics:
+      description: real time prometheus metrics
+      content:
+        text/plain:
+          schema:
+            type: string
+  schemas:
+    ErrorCode:
+      type: string
+      enum:
+        - database_error
+        - too_many_requests
+        - unknown_error
+    Error:
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        description:
+          type: string
+    Health:
+      properties:
+        status:
+          type: string
+          enum:
+            - up
+            - down
+    Id:
+      type: string
+    PaymentType:
+      type: string
+      enum:
+        - Payment
+    Version:
+      type: integer
+    Payments:
+      type: array
+      items:
+        $ref: '#/components/schemas/Payment'
+    Payment:
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        organisation_id:
+          $ref: '#/components/schemas/Id'
+        type:
+          $ref: '#/components/schemas/PaymentType'
+        version:
+          $ref: '#/components/schemas/Version'
+        attributes:
+          type: object
+    Links:
+      type: array
+      items:
+        $ref: '#/components/schemas/Link'
+    Link:
+      type: object
