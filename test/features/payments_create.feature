@@ -2,7 +2,7 @@ Feature: Create payments
   In order to manage payments
   As a product owner
   I need to create new payments 
-
+    
   Scenario: No payments
     Given a payment with id abc
     When I create that payment
@@ -12,6 +12,7 @@ Feature: Create payments
     And that json should have int at data.version equal to 0
     And I should have 1 payment(s)
 
+  @wip
   Scenario: Existing payment
     Given I created a new payment with id abc
     When I create that payment

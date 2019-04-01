@@ -2,7 +2,7 @@ package util
 
 import (
 	"github.com/go-chi/render"
-	"log"
+	"github.com/pedro-gutierrez/form3/pkg/logger"
 	"net/http"
 )
 
@@ -13,7 +13,13 @@ type EmptyResponse struct{}
 // with the appropiate status code, and logging the root cause to the console
 func HandleHttpError(w http.ResponseWriter, r *http.Request, status int, err error) {
 	RenderJSON(w, r, status, &EmptyResponse{})
-	log.Printf(err.Error())
+
+	// Our middleware is going to log the response
+	// but we complete with more info incase we have a 5xx kind of error
+	if status >= http.StatusInternalServerError {
+		logger.Error(err)
+	}
+
 }
 
 // RenderJSON is a convenience function that marshalls the given interface

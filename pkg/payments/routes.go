@@ -5,9 +5,7 @@ package payments
 import (
 	"encoding/json"
 	"github.com/go-chi/chi"
-	"github.com/go-chi/render"
 	. "github.com/pedro-gutierrez/form3/pkg/util"
-	"log"
 	"net/http"
 	"strconv"
 )
@@ -29,25 +27,12 @@ func New(repo Repo) *PaymentsService {
 // supported by this service
 func (s *PaymentsService) Routes() *chi.Mux {
 	router := chi.NewRouter()
-	router.Get("/health", s.Health)
 	router.Get("/payments", s.List)
 	router.Get("/payments/{id}", s.Fetch)
 	router.Post("/payments", s.Create)
 	router.Put("/payments/{id}", s.Update)
 	router.Delete("/payments/{id}", s.Delete)
 	return router
-}
-
-// Health returns the health status of the
-// payments service
-func (s *PaymentsService) Health(w http.ResponseWriter, r *http.Request) {
-	status := "up"
-	if s.repo.Check() != nil {
-		status = "down"
-	}
-	render.JSON(w, r, &Health{
-		Status: status,
-	})
 }
 
 // List returns a list of payments. We return finite lists of payments
@@ -87,7 +72,12 @@ func (s *PaymentsService) List(w http.ResponseWriter, r *http.Request) {
 		return
 	} else {
 		// Adapt repo data to payment data
-		payments := NewPaymentsFromRepoItems(repoItems)
+		payments, err := NewPaymentsFromRepoItems(repoItems)
+		if err != nil {
+			HandleHttpError(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
 		links := NewLinks()
 
 		// Send back the response
@@ -112,7 +102,11 @@ func (s *PaymentsService) Fetch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := NewPaymentFromRepoItem(found)
+	p, err := NewPaymentFromRepoItem(found)
+	if err != nil {
+		HandleHttpError(w, r, http.StatusInternalServerError, err)
+		return
+	}
 
 	// Send back the response
 	RenderJSON(w, r, http.StatusOK, &PaymentResponse{
@@ -203,7 +197,11 @@ func (s *PaymentsService) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p = NewPaymentFromRepoItem(createdItem)
+	p, err = NewPaymentFromRepoItem(createdItem)
+	if err != nil {
+		HandleHttpError(w, r, http.StatusInternalServerError, err)
+		return
+	}
 
 	// Everything went fine. Confirm back to the client
 	RenderJSON(w, r, http.StatusCreated, &PaymentResponse{
@@ -222,8 +220,6 @@ func (s *PaymentsService) Update(w http.ResponseWriter, r *http.Request) {
 		HandleHttpError(w, r, http.StatusBadRequest, err)
 		return
 	}
-
-	log.Printf("request: %v", p)
 
 	id := chi.URLParam(r, "id")
 	// check the id of the payment body and the id
@@ -255,8 +251,6 @@ func (s *PaymentsService) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("in db: %v", repoItem)
-
 	// Update the payment. the repo implementation
 	// will implement the most appropriate concurrency and locking
 	// statregy
@@ -272,7 +266,11 @@ func (s *PaymentsService) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p = NewPaymentFromRepoItem(updatedItem)
+	p, err = NewPaymentFromRepoItem(updatedItem)
+	if err != nil {
+		HandleHttpError(w, r, http.StatusBadRequest, err)
+		return
+	}
 
 	// Everything went fine, Confirm by returning the payment
 	// back to the client

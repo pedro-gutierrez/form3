@@ -4,12 +4,8 @@ import (
 	"encoding/json"
 	. "github.com/pedro-gutierrez/form3/pkg/util"
 	"github.com/pkg/errors"
+	"strings"
 )
-
-// Health basic health status info
-type Health struct {
-	Status string `json:"status"`
-}
 
 // Payment a payment
 type Payment struct {
@@ -34,30 +30,44 @@ func (p *Payment) ToRepoItem() (*RepoItem, error) {
 		return repoItem, errors.Wrap(err, "Unable to serialize payment attributes")
 	}
 
-	repoItem.Attributes = bytes
+	repoItem.Attributes = string(bytes)
 	return repoItem, nil
 }
 
 // Converts a repo item into a payment
-func NewPaymentFromRepoItem(item *RepoItem) *Payment {
-	return &Payment{
+func NewPaymentFromRepoItem(item *RepoItem) (*Payment, error) {
+	p := &Payment{
 		Type:         "Payment",
 		Id:           item.Id,
 		Version:      item.Version,
 		Organisation: item.Organisation,
-		Attributes:   item.Attributes,
 	}
+
+	// decode the attributes payload
+	var attrs map[string]interface{}
+	if item.Attributes != "" {
+		err := json.NewDecoder(strings.NewReader(item.Attributes)).Decode(&attrs)
+		if err != nil {
+			return p, errors.Wrap(err, "Error parsing repo item attributes")
+		}
+	}
+	p.Attributes = attrs
+	return p, nil
 }
 
 // PaymentsFromRepoItems converts the given slice of repo
 // items to a list of payments
-func NewPaymentsFromRepoItems(items []*RepoItem) []*Payment {
+func NewPaymentsFromRepoItems(items []*RepoItem) ([]*Payment, error) {
 	payments := []*Payment{}
 	for _, i := range items {
-		payments = append(payments, NewPaymentFromRepoItem(i))
+		p, err := NewPaymentFromRepoItem(i)
+		if err != nil {
+			return payments, err
+		}
+		payments = append(payments, p)
 	}
 
-	return payments
+	return payments, nil
 }
 
 // PaymentRequest represents a http request that contains

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mdaverde/jsonpath"
 	. "github.com/smartystreets/assertions"
+	"log"
 	"reflect"
 )
 
@@ -26,16 +27,14 @@ func (w *World) ThereAreNoPayments() error {
 
 // IDeleteAllData use the admin endpoints in order to delete all data
 func (w *World) IDeleteAllData() error {
-	path := w.versionedPath("/admin/repo")
-	w.Client.Delete(path)
+	w.Client.Delete("/admin/repo")
 	return nil
 }
 
 // IGetTheRepoInfo uses the admin endpoints in order to get the
 // current repository info
 func (w *World) IGetTheRepoInfo() error {
-	path := w.versionedPath("/admin/repo")
-	w.Client.Get(path)
+	w.Client.Get("/admin/repo")
 	return nil
 }
 
@@ -55,8 +54,7 @@ func (w *World) TheRepoShouldHaveItems(expected int) error {
 // endpoint and stores the response details in the World
 // context
 func (w *World) IQueryTheHealthEndpoint() error {
-	path := w.versionedPath("/health")
-	w.Client.Get(path)
+	w.Client.Get("/health")
 	return nil
 }
 
@@ -78,6 +76,7 @@ func (w *World) IGetAllPayments() error {
 // iGetPaymentsFromTo returns a subset of payments
 func (w *World) IGetPaymentsFromTo(from int, to int) error {
 	path0 := fmt.Sprintf("/payments?from=%v&to=%v", from, to)
+	log.Printf(path0)
 	w.Client.Get(w.versionedPath(path0))
 	return nil
 }
@@ -308,8 +307,10 @@ func (w *World) IUpdatedThatPayment() error {
 // of items returned is the expected
 func (w *World) IShouldHavePayments(expected int) error {
 	return DoThen(w.IGetAllPayments(), func() error {
-		return DoThen(w.IShouldHaveAJson(), func() error {
-			return w.ThatJsonShouldHaveItems(expected)
+		return DoThen(w.IShouldHaveStatusCode(200), func() error {
+			return DoThen(w.IShouldHaveAJson(), func() error {
+				return w.ThatJsonShouldHaveItems(expected)
+			})
 		})
 	})
 }

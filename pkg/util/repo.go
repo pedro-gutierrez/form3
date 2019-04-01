@@ -12,7 +12,7 @@ type RepoItem struct {
 	Id           string `db:"id"`
 	Version      int    `db:"version"`
 	Organisation string `db:"organisation"`
-	Attributes   []byte `db:"attributes"`
+	Attributes   string `db:"attributes"`
 }
 
 // Basic repository live information
@@ -26,7 +26,6 @@ type RepoInfo struct {
 type RepoConfig struct {
 	Driver     string
 	Uri        string
-	Debug      bool
 	Migrations string
 }
 
@@ -90,6 +89,8 @@ func NewRepo(config RepoConfig) (Repo, error) {
 	switch config.Driver {
 	case "sqlite3":
 		return NewSqlite3Repo(config)
+	case "postgres":
+		return NewPostgresRepo(config)
 	default:
 		return db, fmt.Errorf("repo driver not supported: %v", config.Driver)
 	}

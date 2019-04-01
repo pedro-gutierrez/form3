@@ -8,15 +8,15 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
 	"github.com/pedro-gutierrez/form3/pkg/admin"
+	"github.com/pedro-gutierrez/form3/pkg/health"
+	"github.com/pedro-gutierrez/form3/pkg/logger"
 	"github.com/pedro-gutierrez/form3/pkg/payments"
 	"github.com/pedro-gutierrez/form3/pkg/util"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	l "github.com/treastech/logger"
 	"github.com/ulule/limiter"
 	"github.com/ulule/limiter/drivers/middleware/stdlib"
 	"github.com/ulule/limiter/drivers/store/memory"
-	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"strings"
@@ -32,7 +32,6 @@ var (
 	repoDriver     *string
 	repoUri        *string
 	repoMigrations *string
-	repoLogs       *bool
 	enableCors     *bool
 	timeout        *int
 	adminRoutes    *bool
@@ -50,7 +49,6 @@ func init() {
 	repoDriver = flag.String("repo", "sqlite3", "type of persistence repository to use, eg. sqlite3, postgres")
 	repoUri = flag.String("repo-uri", "", "repo specific connection string")
 	repoMigrations = flag.String("repo-migrations", "", "path to database migrations")
-	repoLogs = flag.Bool("repo-logs", false, "enable repo logs")
 	adminRoutes = flag.Bool("admin", false, "enable admin endpoints")
 	profiling = flag.Bool("profiling", false, "enable profiling")
 }
@@ -65,7 +63,6 @@ func main() {
 	repo, err := util.NewRepo(util.RepoConfig{
 		Driver:     *repoDriver,
 		Uri:        *repoUri,
-		Debug:      *repoLogs,
 		Migrations: *repoMigrations,
 	})
 
@@ -80,8 +77,6 @@ func main() {
 	if err := repo.Check(); err != nil {
 		log.Fatal(errors.Wrap(err, "Could connect to the repo"))
 	}
-
-	log.Printf("Using repo: %s", repo.Description())
 
 	router := chi.NewRouter()
 
@@ -100,26 +95,14 @@ func main() {
 
 	// Maybe turn on Prometheus metrics
 	if *metrics {
-		log.Printf("Exposing Prometheus metrics")
 		router.Use(chiprometheus.NewMiddleware("payments"))
 	}
 
-	// Maybe turn on logging of http requests/responses
-	if *httpLogs {
-		// JSON logger, so that it is easier to consume
-		// logs (eg. with Elasticsearch)
-
-		logger, _ := zap.NewProduction()
-		defer logger.Sync() // flushes buffer, if any
-		router.Use(l.Logger(logger))
-
-		//	router.Use(zerochi.NewStructuredLogger(zerochi.NewLogger()))
-		log.Printf("Logging responses")
-	}
+	// Use our own structured logger middleware
+	router.Use(logger.NewHttpLogger())
 
 	// Maybe GZIP http responses
 	if *compress {
-		log.Printf("Compressing responses")
 		router.Use(middleware.DefaultCompress)
 	}
 
@@ -129,7 +112,6 @@ func main() {
 	// For simplicity, we use the memory store but there are other
 	// options (eg. Redis)
 	if *limit != "" {
-		log.Printf("Setting rate-limit to %v", *limit)
 		rate, err := limiter.NewRateFromFormatted(*limit)
 		if err != nil {
 			log.Fatal(errors.Wrap(err, "Error setting rate limit"))
@@ -141,7 +123,6 @@ func main() {
 	// Set some CORS options, if enabled. I guess the options here could
 	// be further customised or made configurable
 	if *enableCors {
-		log.Printf("Enabling CORS")
 		cors := cors.New(cors.Options{
 			AllowedOrigins:   []string{"*"},
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -157,7 +138,7 @@ func main() {
 	// handler. This has to be done after all middleware have been
 	// set
 	if *metrics {
-		router.Handle("/metrics", prometheus.Handler())
+		router.Mount("/metrics", prometheus.Handler())
 	}
 
 	// If profiling is enabled, enable net/http/pprof middleware
@@ -165,18 +146,20 @@ func main() {
 		router.Mount("/profiling", middleware.Profiler())
 	}
 
+	// Mount health probe
+	router.Mount("/health", health.New(repo).Routes())
+
+	// Admin features
+	// (useful for testing, for example, but use with care in a production
+	// environment
+	if *adminRoutes {
+		router.Route("/admin", func(adminRouter chi.Router) {
+			adminRouter.Mount("/", admin.New(repo).Routes())
+		})
+	}
+
 	// mount application logic
 	router.Route("/v1", func(v1Router chi.Router) {
-
-		// Admin features
-		// (useful for testing, for example, but use with care in a production
-		// environment
-		if *adminRoutes {
-			v1Router.Route("/admin", func(adminRouter chi.Router) {
-				adminRouter.Mount("/", admin.New(repo).Routes())
-			})
-			log.Printf("Admin routes added")
-		}
 
 		// payments api
 		v1Router.Mount("/", payments.New(repo).Routes())
@@ -190,13 +173,24 @@ func main() {
 		handler http.Handler,
 		middlewares ...func(http.Handler) http.Handler) error {
 		route = strings.Replace(route, "/*/", "/", -1)
-		log.Printf("Mounted: %s %s", method, route)
+		logger.Info("Mounted route", &RouteInfo{Method: method, Path: route})
 		return nil
 	}); err != nil {
 		log.Printf(err.Error())
 	}
 
 	// start the server
-	log.Printf("Listening on %v", *listen)
+	logger.Info("Started server", &ServerInfo{Interface: *listen})
 	log.Fatal(http.ListenAndServe(*listen, router))
+}
+
+// Simple route information
+type RouteInfo struct {
+	Method string `json:"method"`
+	Path   string `json:"path"`
+}
+
+// Simple port information
+type ServerInfo struct {
+	Interface string `json:"interface"`
 }

@@ -6,7 +6,7 @@ Feature: List payments
   Scenario: Invalid request
     When I get payments without from/to
     Then I should have status code 400
-    
+
   Scenario: No payments
     When I get all payments
     Then I should have status code 200

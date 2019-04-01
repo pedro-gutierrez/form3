@@ -3,5 +3,5 @@ CREATE TABLE IF NOT EXISTS payments(
     version INT NOT NULL DEFAULT 0,
     organisation VARCHAR(255) NOT NULL,
     deleted INT DEFAULT 0,
-    attributes BLOB NOT NULL
+    attributes TEXT NOT NULL
 )
