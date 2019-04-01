@@ -20,10 +20,9 @@ Feature: Delete payments
     When I delete that payment
     Then I should have status code 404
 
-  @wip
   Scenario: Obsolete version
     Given I created a new payment with id abc
     And I updated that payment
-    When I delete version 1 of that payment
+    When I delete version 0 of that payment
     Then I should have status code 409
 

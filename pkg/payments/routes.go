@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
 	. "github.com/pedro-gutierrez/form3/pkg/util"
+	"log"
 	"net/http"
 	"strconv"
 )
@@ -49,9 +50,38 @@ func (s *PaymentsService) Health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// List returns a list of payments
+// List returns a list of payments. We return finite lists of payments
+// so we need to check the from and to query params, and make sure
+// they make sense
 func (s *PaymentsService) List(w http.ResponseWriter, r *http.Request) {
-	repoItems, err := s.repo.List(0, 20)
+
+	// convert the from param
+	// into a integer or bad request
+	from, err := strconv.Atoi(r.URL.Query().Get("from"))
+	if err != nil {
+		HandleHttpError(w, r, http.StatusBadRequest, err)
+	}
+
+	// convert the to param
+	// into a integer or bad request
+	to, err := strconv.Atoi(r.URL.Query().Get("to"))
+	if err != nil {
+		HandleHttpError(w, r, http.StatusBadRequest, err)
+	}
+
+	limit := to - from
+
+	// from has to be less than to
+	if limit <= 0 {
+		HandleHttpError(w, r, http.StatusBadRequest, err)
+	}
+
+	// limit results
+	if limit > 20 {
+		limit = 20
+	}
+
+	repoItems, err := s.repo.List(from, limit)
 	if err != nil {
 		HandleHttpError(w, r, http.StatusInternalServerError, err)
 		return
@@ -193,6 +223,8 @@ func (s *PaymentsService) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("request: %v", p)
+
 	id := chi.URLParam(r, "id")
 	// check the id of the payment body and the id
 	// from the path parameters. Return a bad request if they differ
@@ -222,6 +254,8 @@ func (s *PaymentsService) Update(w http.ResponseWriter, r *http.Request) {
 		HandleHttpError(w, r, http.StatusInternalServerError, err)
 		return
 	}
+
+	log.Printf("in db: %v", repoItem)
 
 	// Update the payment. the repo implementation
 	// will implement the most appropriate concurrency and locking

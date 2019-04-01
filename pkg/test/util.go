@@ -38,6 +38,19 @@ func DoThen(err error, next func() error) error {
 	}
 }
 
+// DoSequence performs the given step function, count times,
+// in a sequence.
+func DoSequence(step func(it int) error, count int) error {
+	for i := 0; i < count; i++ {
+		err := step(i)
+		// break the loop as soon as we get an error
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PaymentData is a simplified representation of
 // a payment, to be used in BDDs. Most of fields will be set
 // by default, but here we declare the ones that are
@@ -55,11 +68,11 @@ func (p *PaymentData) ToJSON() string {
 		"data": {
 			"id": "%s",
 			"type": "Payment",
-			"version": 1,
+			"version": %v,
 			"organisation": "org1",
 			"attributes": {}
 		}
-	}`, p.Id)
+	}`, p.Id, p.Version)
 }
 
 // a ScenarioData struct is data for a particular scenario

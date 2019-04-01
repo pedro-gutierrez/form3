@@ -16,8 +16,10 @@ type RepoItem struct {
 }
 
 // Basic repository live information
+// Could be useful for audit or monitoring purposes
 type RepoInfo struct {
-	count int
+	// The total number of non-deleted items in the repo
+	Count int `json:"count"`
 }
 
 // RepoConfig is a simple container for database configuration

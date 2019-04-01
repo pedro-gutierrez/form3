@@ -14,6 +14,7 @@ type Health struct {
 // Payment a payment
 type Payment struct {
 	Id           string      `json:"id"`
+	Type         string      `json:"type"`
 	Version      int         `json:"version"`
 	Organisation string      `json:"organisation"`
 	Attributes   interface{} `json:"attributes"`
@@ -40,6 +41,7 @@ func (p *Payment) ToRepoItem() (*RepoItem, error) {
 // Converts a repo item into a payment
 func NewPaymentFromRepoItem(item *RepoItem) *Payment {
 	return &Payment{
+		Type:         "Payment",
 		Id:           item.Id,
 		Version:      item.Version,
 		Organisation: item.Organisation,

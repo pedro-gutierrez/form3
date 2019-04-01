@@ -32,7 +32,7 @@ type Sqlite3Repo struct {
 // from the given configuration
 func NewSqlite3Repo(config RepoConfig) (Repo, error) {
 	// Define what kind of storage we should
-	// use. Use whatever is specified, or fallback
+	// use. Use whatever filename is specified, or fallback
 	// to memory storage by default
 	backend := config.Uri
 	if backend == "" {
@@ -44,7 +44,7 @@ func NewSqlite3Repo(config RepoConfig) (Repo, error) {
 	repo := &Sqlite3Repo{
 		debug:         config.Debug,
 		backend:       backend,
-		countStmt:     "SELECT COUNT(*) FROM payments WHERE deleted IS NULL",
+		countStmt:     "SELECT COUNT(*) FROM payments WHERE deleted = 0",
 		deleteAllStmt: "DELETE FROM payments",
 		// We are not sorting payments in any particular order
 		listStmt:      "SELECT id, version, organisation, attributes FROM payments WHERE deleted = 0 LIMIT ?, ?",
@@ -110,7 +110,7 @@ func (repo *Sqlite3Repo) List(offset int, limit int) ([]*RepoItem, error) {
 
 	rows, err := repo.db.Query(repo.listStmt, offset, limit)
 	if err != nil {
-		return items, errors.Wrap(err, "Error fetching items")
+		return items, errors.Wrap(err, repo.listStmt)
 	}
 
 	defer rows.Close()
@@ -134,7 +134,7 @@ func (repo *Sqlite3Repo) Fetch(item *RepoItem) (*RepoItem, error) {
 
 	rows, err := repo.db.Query(repo.fetchStmt, item.Id)
 	if err != nil {
-		return found, errors.Wrap(err, "Error fetching items")
+		return found, errors.Wrap(err, repo.fetchStmt)
 	}
 
 	defer rows.Close()
@@ -158,14 +158,14 @@ func (repo *Sqlite3Repo) Fetch(item *RepoItem) (*RepoItem, error) {
 func (repo *Sqlite3Repo) Create(item *RepoItem) (*RepoItem, error) {
 	stmt, err := repo.db.Prepare(repo.createStmt)
 	if err != nil {
-		return item, errors.Wrap(err, "Error preparing INSERT statement")
+		return item, errors.Wrap(err, repo.createStmt)
 	}
 
 	defer stmt.Close()
 
 	// We ignore the version number from the repo item
-	// and we set it to 1
-	_, err = stmt.Exec(item.Id, 1, item.Organisation, "")
+	// and we set it to 0
+	_, err = stmt.Exec(item.Id, 0, item.Organisation, "")
 	if err != nil {
 		// inspect the underlying database error
 		// and translate it into something higher level
@@ -179,7 +179,7 @@ func (repo *Sqlite3Repo) Create(item *RepoItem) (*RepoItem, error) {
 	}
 
 	// This is a new item, we force its version to be 1
-	item.Version = 1
+	item.Version = 0
 
 	// Everything went fine. We return the item as is
 	// for now
@@ -201,6 +201,9 @@ func (repo *Sqlite3Repo) Update(item *RepoItem) (*RepoItem, error) {
 	// some protection against concurrent updates and better
 	// feedback to the client
 	newVersion := item.Version + 1
+
+	log.Printf("version %v => %v", item.Version, newVersion)
+
 	res, err := stmt.Exec(item.Attributes, newVersion, item.Id, item.Version)
 	if err != nil {
 		// inspect the underlying database error
@@ -329,5 +332,5 @@ func (repo *Sqlite3Repo) Info() (RepoInfo, error) {
 		break
 	}
 
-	return RepoInfo{count: count}, nil
+	return RepoInfo{Count: count}, nil
 }

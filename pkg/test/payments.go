@@ -31,6 +31,26 @@ func (w *World) IDeleteAllData() error {
 	return nil
 }
 
+// IGetTheRepoInfo uses the admin endpoints in order to get the
+// current repository info
+func (w *World) IGetTheRepoInfo() error {
+	path := w.versionedPath("/admin/repo")
+	w.Client.Get(path)
+	return nil
+}
+
+// TheRepoShouldHaveItems uses the admin repo info endpoint
+// and verifies it returns the total number of items expected
+func (w *World) TheRepoShouldHaveItems(expected int) error {
+	return DoThen(w.IGetTheRepoInfo(), func() error {
+		return DoThen(w.IShouldHaveStatusCode(200), func() error {
+			return DoThen(w.IShouldHaveAJson(), func() error {
+				return w.ThatJsonShouldHaveInt("count", expected)
+			})
+		})
+	})
+}
+
 // IQueryTheHealthEndpoint performs a GET on the healthcheck
 // endpoint and stores the response details in the World
 // context
@@ -40,12 +60,25 @@ func (w *World) IQueryTheHealthEndpoint() error {
 	return nil
 }
 
+// IGetPaymentsWithoutFromTo performs a GET on the payments
+// endpoint and stores the response details in the World
+// context. This function does not specify from/to query params
+func (w *World) IGetPaymentsWithoutFromTo() error {
+	w.Client.Get(w.versionedPath("/payments"))
+	return nil
+}
+
 // IGetAllPayments performs a GET on the payments
 // endpoint and stores the response details in the World
-// context
+// context. This function fetches payments 0 to 19
 func (w *World) IGetAllPayments() error {
-	path := w.versionedPath("/payments")
-	w.Client.Get(path)
+	return w.IGetPaymentsFromTo(0, 20) // fetch first 20
+}
+
+// iGetPaymentsFromTo returns a subset of payments
+func (w *World) IGetPaymentsFromTo(from int, to int) error {
+	path0 := fmt.Sprintf("/payments?from=%v&to=%v", from, to)
+	w.Client.Get(w.versionedPath(path0))
 	return nil
 }
 
@@ -147,7 +180,7 @@ func (w *World) ThatJsonShouldHaveItems(expected int) error {
 func (w *World) APaymentWithId(id string) error {
 	w.Data.PaymentData = &PaymentData{
 		Id:      id,
-		Version: 1,
+		Version: 0,
 	}
 	return nil
 }
@@ -200,6 +233,17 @@ func (w *World) IDeleteThatPayment() error {
 	})
 }
 
+// IGetThatPayment sends a GET request for the payment defined in the
+// scenario data.
+func (w *World) IGetThatPayment() error {
+	return ExpectThen(ShouldNotBeNil(w.Data.PaymentData), func() error {
+		p := w.Data.PaymentData
+		path := w.versionedPath(fmt.Sprintf("/payments/%s", p.Id))
+		w.Client.Get(path)
+		return nil
+	})
+}
+
 // ICreatedANewPaymentWithId combines logic from previous steps in order
 // to provide a convenience Given step for payment fixtures in more complex
 // scenarios
@@ -208,6 +252,28 @@ func (w *World) ICreatedANewPaymentWithId(id string) error {
 		return DoThen(w.ICreateThatPayment(), func() error {
 			return w.IShouldHaveStatusCode(201)
 		})
+	})
+}
+
+// ICreatePayments repeats many times the process of creating
+// a new payment and verifying it was created, in a sequence
+func (w *World) ICreatePayments(count int) error {
+	return DoSequence(func(it int) error {
+		// convert the iteration number into an id
+		id := fmt.Sprintf("payment%v", it)
+		return DoThen(w.APaymentWithId(id), func() error {
+			return DoThen(w.ICreateThatPayment(), func() error {
+				return w.IShouldHaveStatusCode(201)
+			})
+		})
+	}, count)
+}
+
+// ICreatedPayments runs the ICreatePayments step and then verifies the repo
+// info
+func (w *World) ICreatedPayments(count int) error {
+	return DoThen(w.ICreatePayments(count), func() error {
+		return w.TheRepoShouldHaveItems(count)
 	})
 }
 

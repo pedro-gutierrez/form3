@@ -9,6 +9,7 @@ Feature: Create payments
     Then I should have status code 201
     And I should have a json
     And that json should have string at data.id equal to abc
+    And that json should have int at data.version equal to 0
     And I should have 1 payment(s)
 
   Scenario: Existing payment
@@ -17,7 +18,6 @@ Feature: Create payments
     Then I should have status code 409
     And I should have 1 payment(s)
     
-  @wip
   Scenario: Payment with wrong version
     Given a payment with id abc
     And that payment has version 2
@@ -25,4 +25,4 @@ Feature: Create payments
     Then I should have status code 201
     And I should have a json
     And that json should have string at data.id equal to abc
-    And that json should have int at data.version equal to 1
+    And that json should have int at data.version equal to 0
