@@ -90,8 +90,10 @@ func (w *World) IQueryTheMetricsEndpoint() error {
 // IShouldHaveStatusCode expects the client to have
 // the given status code in its last response
 func (w *World) IShouldHaveStatusCode(expected int) error {
-	return ExpectThen(ShouldNotBeNil(w.Client.Resp), func() error {
-		return Expect(ShouldEqual(w.Client.Resp.StatusCode, expected))
+	return ExpectThen(ShouldBeNil(w.Client.Err), func() error {
+		return ExpectThen(ShouldNotBeNil(w.Client.Resp), func() error {
+			return Expect(ShouldEqual(w.Client.Resp.StatusCode, expected))
+		})
 	})
 }
 

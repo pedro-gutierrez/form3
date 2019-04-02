@@ -1,2 +1,3 @@
-data
+data/pg/data
+data/pg/run
 .DS*

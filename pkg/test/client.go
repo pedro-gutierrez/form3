@@ -82,6 +82,14 @@ func (c *Client) Put(path string, data string) {
 // initialize the Json and Textfields in the client's last response
 // so that they can be consumed in tests in a convenient way
 func (c *Client) parseResponse() {
+
+	// If there was a connection issue, prevent
+	// from accessing variables that might not even
+	// be initialized
+	if c.Err != nil {
+		return
+	}
+
 	if c.Resp != nil && c.Resp.Body != nil {
 		bytes, err := ioutil.ReadAll(c.Resp.Body)
 		if err != nil {

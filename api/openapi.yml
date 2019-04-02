@@ -31,17 +31,19 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/InternalError'
-  '/payments':
+  /payments:
     get:
       operationId: getPayments
       summary: Returns a collection of payment resources
       parameters:
         - $ref: '#/components/parameters/from'
-        - $ref: '#/components/parameters/size'
+        - $ref: '#/components/parameters/to'
         - $ref: '#/components/parameters/accept'
       responses:
         '200':
           $ref: '#/components/responses/Payments'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -136,7 +138,7 @@ components:
     accept:
       name: accept
       in: header
-      description: The type of response the client is able to process 
+      description: The type of response the client is able to process
       required: true
       schema:
         type: string
@@ -161,10 +163,10 @@ components:
       required: false
       schema:
         type: integer
-    size:
-      name: size
+    to:
+      name: to
       in: query
-      description: return that number of items
+      description: return item up to this index
       required: false
       schema:
         type: integer
@@ -174,33 +176,35 @@ components:
       content:
         application/json:
           schema:
-             $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Error'
     BadRequest:
       description: an invalid client request
       content:
         application/json:
           schema:
-             $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Error'
     NotFound:
       description: the requested resource was not found
       content:
         application/json:
           schema:
-             $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Error'
     Conflict:
-      description: there is a new version for that resource, possibly from a concurrent modification
+      description: >-
+        there is a new version for that resource, possibly from a concurrent
+        modification
       content:
         application/json:
           schema:
-             $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Error'
     TooManyRequests:
       description: a rate limit was hit by the client
       content:
         application/json:
           schema:
-             $ref: '#/components/schemas/Error'
+            $ref: '#/components/schemas/Error'
     NoContent:
-      description: the response was accepted, but returned no data
+      description: 'the response was accepted, but returned no data'
       content:
         application/json: {}
     NewPayment:
@@ -208,7 +212,7 @@ components:
       content:
         application/json:
           schema:
-             $ref: '#/components/schemas/Payment'
+            $ref: '#/components/schemas/Payment'
     Payment:
       description: an existing payment
       content:
@@ -232,7 +236,7 @@ components:
       content:
         application/json:
           schema:
-             $ref: '#/components/schemas/Health'
+            $ref: '#/components/schemas/Health'
     Metrics:
       description: real time prometheus metrics
       content:
