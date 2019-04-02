@@ -2,33 +2,29 @@
 deps:
 	@cd cmd; go get -d -v; cd ..  
 
-# Run the app locally, using disc 
-# storage
-run:
-	@go run cmd/main.go --repo-uri=data/data.db --repo-migrations=./schema 
-
 # Run the app locally, using memory
-# storage
+# storage, enabling the admin apis and exposing prometheus metrics
 run-with-sqlite3:
-	@go run cmd/main.go --repo=sqlite3 --repo-uri=data/sqlite3/test.db --metrics=true --http-logs=true --repo-migrations=./schema --admin=true
+	@go run cmd/main.go --metrics=true --admin=true
 
-# Run the app locally, using memory
-# storage
+# Run the app locally, connecting to a postgres database, enabling the admin apis
+# and exposing prometheus metrics
 run-with-postgres:
-	@go run cmd/main.go --repo=postgres --repo-uri=postgresql://form3:form3@localhost:5432/form3?sslmode=disable --metrics=true --http-logs=true --repo-migrations=./schema --admin=true
+	@go run cmd/main.go --repo=postgres --repo-uri=postgresql://form3:form3@localhost:5432/form3?sslmode=disable --metrics=true --admin=true
 
-# Run the app with profiling on
-run-for-debug:
-	@go run cmd/main.go --metrics=true --repo-uri=data/debug.db --http-logs=true --repo-migrations=./schema --admin=true --profiling=true
-
-
-# Build an executable
-build:
-	@go build cmd/main.go
-
-# Build a docker image
-docker:
+# Build a new docker image
+docker-build:
 	@docker build -t pedrogutierrez/form3:latest .
+
+# Run docker image (uses in memory sqlite3 by default)
+docker-run:
+	@docker run --name form3 -p 8080:8080 pedrogutierrez/form3:latest
+
+# Stop and remove the docker image
+docker-stop:
+	@docker stop form3
+	@docker rm form3
+
 
 # Run all BDD scenarios
 bdd:
@@ -44,7 +40,6 @@ bdd-wip:
 # http://localhost:6060/pkg/github.com/pedro-gutierrez/form3/cmd/payments/
 doc:
 	@godoc -http=:6060
-
 
 # Stop and remove postgres
 postgres-stop:

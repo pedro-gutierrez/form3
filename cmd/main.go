@@ -27,7 +27,6 @@ import (
 var (
 	listen             *string
 	limit              *string
-	httpLogs           *bool
 	compress           *bool
 	metrics            *bool
 	repoDriver         *string
@@ -40,24 +39,25 @@ var (
 	profiling          *bool
 	apiVersion         *string
 	externalUrl        *string
+	maxResults         *int
 )
 
 func init() {
 	listen = flag.String("listen", ":8080", "the http interface to listen at")
 	limit = flag.String("limit", "", "rate limit (eg. 5-S for 5 reqs/second)")
-	httpLogs = flag.Bool("http-logs", false, "enable http logs")
 	compress = flag.Bool("compress", false, "gzip responses")
 	metrics = flag.Bool("metrics", false, "expose prometheus metrics")
 	enableCors = flag.Bool("cors", false, "enable cors")
 	timeout = flag.Int("timeout", 60, "request timeout")
 	repoDriver = flag.String("repo", "sqlite3", "type of persistence repository to use, eg. sqlite3, postgres")
 	repoUri = flag.String("repo-uri", "", "repo specific connection string")
-	repoMigrations = flag.String("repo-migrations", "", "path to database migrations")
+	repoMigrations = flag.String("repo-migrations", "./schema", "path to database migrations")
 	repoSchemaPayments = flag.String("repo-schema-payments", "payments", "the table or schema where we store payments")
 	adminRoutes = flag.Bool("admin", false, "enable admin endpoints")
 	profiling = flag.Bool("profiling", false, "enable profiling")
 	apiVersion = flag.String("api-version", "v1", "api version to expose our services at")
 	externalUrl = flag.String("external-url", "http://localhost:8080", "url to access our microservice from the outside")
+	maxResults = flag.Int("max-results", 20, "Maximum number of results when listing items (eg. payments)")
 }
 
 // Main entry point to the program. Connects to the database, configures
@@ -180,7 +180,7 @@ func main() {
 	router.Route("/v1", func(v1Router chi.Router) {
 
 		// payments api
-		v1Router.Mount("/", payments.New(paymentsRepo, baseUrl).Routes())
+		v1Router.Mount("/", payments.New(paymentsRepo, baseUrl, *maxResults).Routes())
 
 		// more endpoints here...
 	})

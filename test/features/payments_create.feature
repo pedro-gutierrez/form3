@@ -34,7 +34,6 @@ Feature: Create payments
     Then I should have status code 400
     And I should have 0 payment(s)
     
-  @wip
   Scenario: Payment with a negative amount
     Given a payment with id abc and amount -5.00
     When I create that payment

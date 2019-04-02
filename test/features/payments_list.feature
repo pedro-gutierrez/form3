@@ -3,6 +3,7 @@ Feature: List payments
   As a product owner
   I need to list existing payments 
     
+  @wip
   Scenario: No from/to
     When I get payments without from/to
     Then I should have status code 200

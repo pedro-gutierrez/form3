@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/pedro-gutierrez/form3/pkg/logger"
 	"net/http"
+	"strconv"
 )
 
 // HttpService is a simple base type for Http services
@@ -49,4 +50,19 @@ func RenderJSON(w http.ResponseWriter, r *http.Request, status int, data interfa
 // RenderNoContent returns a 204 and an empty response body
 func RenderNoContent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// IntFromString tries to parse the given string, as an int.
+// In case of error, the default int value is returned instead
+func IntFromStringOrDefault(actual string, defaultValue int) int {
+	if actual == "" {
+		return defaultValue
+	}
+
+	v, err := strconv.Atoi(actual)
+	if err != nil {
+		return defaultValue
+	}
+
+	return v
 }

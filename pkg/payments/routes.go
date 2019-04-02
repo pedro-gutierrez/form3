@@ -20,7 +20,6 @@ var (
 )
 
 func init() {
-	maxResults = 20 // TODO make this configurable
 	paymentsLinkPattern = "/payments?from=%v&to=%v"
 	paymentLinkPattern = "/payment/%v"
 }
@@ -30,17 +29,19 @@ func init() {
 // with. It inherits fields and functions from util.HttpService
 type PaymentsService struct {
 	HttpService
-	repo Repo
+	repo       Repo
+	maxResults int
 }
 
 // New creates a new PaymentsService with the given
-// repo and base url information
-func New(repo Repo, baseUrl string) *PaymentsService {
+// repo, base url and maxResults information
+func New(repo Repo, baseUrl string, maxResults int) *PaymentsService {
 	return &PaymentsService{
 		HttpService: HttpService{
 			BaseUrl: baseUrl,
 		},
-		repo: repo,
+		repo:       repo,
+		maxResults: maxResults,
 	}
 }
 
@@ -61,35 +62,21 @@ func (s *PaymentsService) Routes() *chi.Mux {
 // they make sense. If they are not set, we fallback to defaults.
 func (s *PaymentsService) List(w http.ResponseWriter, r *http.Request) {
 
-	// convert the from param
-	// into a integer or bad request
-	from, err := strconv.Atoi(r.URL.Query().Get("from"))
-	if err != nil {
-		// if it was not possible to parse the from
-		// param, then fallback to 0
-		from = 0
-	}
-
-	// convert the to param
-	// into a integer or bad request
-	to, err := strconv.Atoi(r.URL.Query().Get("to"))
-	if err != nil {
-		// if it was not possible to parse the to
-		// param, then fallback to maxResults
-		to = maxResults
-	}
+	from := IntFromStringOrDefault(r.URL.Query().Get("from"), 0)
+	to := IntFromStringOrDefault(r.URL.Query().Get("to"), s.maxResults)
 
 	limit := to - from
 
 	// from has to be less than to
 	if limit <= 0 {
-		HandleHttpError(w, r, http.StatusBadRequest, err)
+		HandleHttpError(w, r, http.StatusBadRequest, fmt.Errorf("Invalid from (%v) or to (%v) query params", from, to))
 		return
 	}
 
-	// limit results
-	if limit > maxResults {
-		limit = maxResults
+	// limit results to the maximum number
+	// of results allowed to be returned in a single call
+	if limit > s.maxResults {
+		limit = s.maxResults
 	}
 
 	repoItems, err := s.repo.List(from, limit)
