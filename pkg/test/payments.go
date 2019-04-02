@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/mdaverde/jsonpath"
 	. "github.com/smartystreets/assertions"
-	"log"
 	"reflect"
 )
 
@@ -19,7 +18,7 @@ func (w *World) TheServiceIsUp() error {
 // system to be started with admin routes
 func (w *World) ThereAreNoPayments() error {
 	return DoThen(w.IDeleteAllData(), func() error {
-		return DoThen(w.IShouldHaveStatusCode(200), func() error {
+		return DoThen(w.IShouldHaveStatusCode(204), func() error {
 			return w.IShouldHavePayments(0)
 		})
 	})
@@ -76,7 +75,6 @@ func (w *World) IGetAllPayments() error {
 // iGetPaymentsFromTo returns a subset of payments
 func (w *World) IGetPaymentsFromTo(from int, to int) error {
 	path0 := fmt.Sprintf("/payments?from=%v&to=%v", from, to)
-	log.Printf(path0)
 	w.Client.Get(w.versionedPath(path0))
 	return nil
 }
@@ -108,9 +106,11 @@ func (w *World) IShouldHaveContentType(expected string) error {
 // IShouldHaveAJson inspects the client's latest response and
 // checks for a json document
 func (w *World) IShouldHaveAJson() error {
-	return ExpectThen(ShouldNotBeNil(w.Client.Json), func() error {
-		w.Data.Subject = w.Client.Json
-		return nil
+	return DoThen(w.IShouldHaveContentType("application/json"), func() error {
+		return ExpectThen(ShouldNotBeNil(w.Client.Json), func() error {
+			w.Data.Subject = w.Client.Json
+			return nil
+		})
 	})
 }
 
@@ -174,12 +174,24 @@ func (w *World) ThatJsonShouldHaveItems(expected int) error {
 	})
 }
 
+// ThatJsonShouldHaveA inspects the json, if any, in the current scenario data,
+// and verifies the given json path exists
+func (w *World) ThatJsonShouldHaveA(path string) error {
+	return ExpectThen(ShouldNotBeNil(w.Data.Subject), func() error {
+		actual, err := jsonpath.Get(w.Data.Subject, path)
+		return ExpectThen(ShouldBeNil(err), func() error {
+			return Expect(ShouldNotBeNil(actual))
+		})
+	})
+}
+
 // APaymentWithId defines a new payment in the current scenario context
 // with the given client defined id
 func (w *World) APaymentWithId(id string) error {
 	w.Data.PaymentData = &PaymentData{
 		Id:      id,
 		Version: 0,
+		Amount:  "1.00",
 	}
 	return nil
 }
@@ -218,17 +230,6 @@ func (w *World) IUpdateVersionOfThatPayment(v int) error {
 		p := w.Data.PaymentData
 		p.Version = v
 		return w.IUpdateThatPayment()
-	})
-}
-
-// IDeleteThatPayment sends a DELETE request for the payment defined in the
-// scenario data. The delete operation requires a version information
-func (w *World) IDeleteThatPayment() error {
-	return ExpectThen(ShouldNotBeNil(w.Data.PaymentData), func() error {
-		p := w.Data.PaymentData
-		path := w.versionedPath(fmt.Sprintf("/payments/%s?version=%v", p.Id, p.Version))
-		w.Client.Delete(path)
-		return nil
 	})
 }
 
@@ -285,12 +286,34 @@ func (w *World) IDeletedThatPayment() error {
 	})
 }
 
+// IDeleteThatPayment sends a DELETE request for the payment defined in the
+// scenario data. The delete operation requires a version information
+func (w *World) IDeleteThatPayment() error {
+	return ExpectThen(ShouldNotBeNil(w.Data.PaymentData), func() error {
+		p := w.Data.PaymentData
+		path := w.versionedPath(fmt.Sprintf("/payments/%s?version=%v", p.Id, p.Version))
+		w.Client.Delete(path)
+		return nil
+	})
+}
+
 // IDeleteVersionOfThatPayment deletes a specific version of payment
 func (w *World) IDeleteVersionOfThatPayment(v int) error {
 	return ExpectThen(ShouldNotBeNil(w.Data.PaymentData), func() error {
 		p := w.Data.PaymentData
 		p.Version = v
 		return w.IDeleteThatPayment()
+	})
+}
+
+// IDeleteThatPaymentWithoutSayingWhichVersion sends a DELETE request for
+// the current payment, but does not specify a version
+func (w *World) IDeleteThatPaymentWithoutSayingWhichVersion() error {
+	return ExpectThen(ShouldNotBeNil(w.Data.PaymentData), func() error {
+		p := w.Data.PaymentData
+		path := w.versionedPath(fmt.Sprintf("/payments/%s", p.Id))
+		w.Client.Delete(path)
+		return nil
 	})
 }
 

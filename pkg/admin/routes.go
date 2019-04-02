@@ -38,7 +38,7 @@ func (s *AdminService) DeleteRepo(w http.ResponseWriter, r *http.Request) {
 		HandleHttpError(w, r, http.StatusInternalServerError, err)
 		return
 	}
-	RenderJSON(w, r, http.StatusOK, &EmptyResponse{})
+	RenderNoContent(w, r)
 }
 
 // GetRepo gets basic info from the repo and exposes it over http

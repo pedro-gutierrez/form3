@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/766b/chi-prometheus"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -36,6 +37,8 @@ var (
 	timeout        *int
 	adminRoutes    *bool
 	profiling      *bool
+	apiVersion     *string
+	externalUrl    *string
 )
 
 func init() {
@@ -51,12 +54,17 @@ func init() {
 	repoMigrations = flag.String("repo-migrations", "", "path to database migrations")
 	adminRoutes = flag.Bool("admin", false, "enable admin endpoints")
 	profiling = flag.Bool("profiling", false, "enable profiling")
+	apiVersion = flag.String("api-version", "v1", "api version to expose our services at")
+	externalUrl = flag.String("external-url", "http://localhost:8080", "url to access our microservice from the outside")
 }
 
 // Main entry point to the program. Connects to the database, configures
 // all required routes, and starts listening for connections
 func main() {
 	flag.Parse()
+
+	// compute the baseUrl as the externalUrl + apiVersion configured in this server
+	baseUrl := fmt.Sprintf("%s/%s", *externalUrl, *apiVersion)
 
 	// Setup our persistence. We do this first, since we want to exit
 	// the program, in case the database is not available
@@ -162,7 +170,7 @@ func main() {
 	router.Route("/v1", func(v1Router chi.Router) {
 
 		// payments api
-		v1Router.Mount("/", payments.New(repo).Routes())
+		v1Router.Mount("/", payments.New(repo, baseUrl).Routes())
 
 		// more endpoints here...
 	})
@@ -180,7 +188,11 @@ func main() {
 	}
 
 	// start the server
-	logger.Info("Started server", &ServerInfo{Interface: *listen})
+	logger.Info("Started server", &ServerInfo{
+		ExternalUrl: *externalUrl,
+		ApiVersion:  *apiVersion,
+		Interface:   *listen,
+	})
 	log.Fatal(http.ListenAndServe(*listen, router))
 }
 
@@ -192,5 +204,7 @@ type RouteInfo struct {
 
 // Simple port information
 type ServerInfo struct {
-	Interface string `json:"interface"`
+	Interface   string `json:"interface"`
+	ExternalUrl string `json:"externalUrl"`
+	ApiVersion  string `json:"apiVersion"`
 }

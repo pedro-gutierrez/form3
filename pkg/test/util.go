@@ -58,6 +58,7 @@ func DoSequence(step func(it int) error, count int) error {
 type PaymentData struct {
 	Id      string
 	Version int
+	Amount  string
 }
 
 // ToJSON returns a json string from the payment data
@@ -70,9 +71,11 @@ func (p *PaymentData) ToJSON() string {
 			"type": "Payment",
 			"version": %v,
 			"organisation": "org1",
-			"attributes": {}
+			"attributes": {
+				"amount": "%s"
+			}
 		}
-	}`, p.Id, p.Version)
+	}`, p.Id, p.Version, p.Amount)
 }
 
 // a ScenarioData struct is data for a particular scenario

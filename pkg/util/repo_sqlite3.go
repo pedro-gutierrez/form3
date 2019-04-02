@@ -36,8 +36,6 @@ func NewSqlite3Repo(config RepoConfig) (Repo, error) {
 		backend: backend,
 	}
 
-	repo.backend = backend
-
 	// create a shared db connection
 	// The caller should defer the call to the Close function
 	database, err := sql.Open("sqlite3", backend)

@@ -77,6 +77,8 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^that json should have string at (.*) equal to (.*)$`, w.ThatJsonShouldHaveString)
 	s.Step(`^that json should have int at (.*) equal to (.*)$`, w.ThatJsonShouldHaveInt)
 	s.Step(`^that json should have (\d+) items$`, w.ThatJsonShouldHaveItems)
+	s.Step(`^that json should have an (.*)$`, w.ThatJsonShouldHaveA)
+	s.Step(`^that json should have a (.*)$`, w.ThatJsonShouldHaveA)
 	s.Step(`^that text should match (.*)$`, w.ThatTextShouldMatch)
 	s.Step(`^I get all payments$`, w.IGetAllPayments)
 	s.Step(`^I get payments (\d+) to (\d+)$`, w.IGetPaymentsFromTo)
@@ -92,6 +94,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I deleted that payment$`, w.IDeletedThatPayment)
 	s.Step(`^I updated that payment$`, w.IUpdatedThatPayment)
 	s.Step(`^I delete version (\d+) of that payment$`, w.IDeleteVersionOfThatPayment)
+	s.Step(`^I delete that payment, without saying which version$`, w.IDeleteThatPaymentWithoutSayingWhichVersion)
 	s.Step(`^I update version (\d+) of that payment$`, w.IUpdateVersionOfThatPayment)
 	s.Step(`^that payment has version (\d+)$`, w.ThatPaymentHasVersion)
 }

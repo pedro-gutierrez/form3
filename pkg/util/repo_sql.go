@@ -108,7 +108,7 @@ func (repo *SqlRepo) Create(item *RepoItem) (*RepoItem, error) {
 
 	// We ignore the version number from the repo item
 	// and we set it to 0
-	_, err = stmt.Exec(item.Id, 0, item.Organisation, "")
+	_, err = stmt.Exec(item.Id, 0, item.Organisation, item.Attributes)
 	if err != nil {
 		// inspect the underlying database error
 		// and translate it into something higher level
@@ -222,13 +222,15 @@ func (repo *SqlRepo) Delete(item *RepoItem) error {
 }
 
 // IsConflict returns true, if the given error denotes
-// a database conflict
+// a database conflict. Note: this kind of error is something we generate
+// and send to the web layer (it is not coming from the underlying sql library)
 func (repo *SqlRepo) IsConflict(err error) bool {
 	return strings.Contains(err.Error(), "DB_CONFLICT")
 }
 
 // IsNotFound Ireturns true, if the given error denotes
-// an item that was not found
+// an item that was not found. Note: this kind of error is something we generate
+// and send to the web layer (it is not coming from the underlying sql library)
 func (repo *SqlRepo) IsNotFound(err error) bool {
 	return strings.Contains(err.Error(), "DB_NOT_FOUND")
 }

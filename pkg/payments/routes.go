@@ -4,23 +4,41 @@ package payments
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi"
 	. "github.com/pedro-gutierrez/form3/pkg/util"
 	"net/http"
 	"strconv"
+	"strings"
 )
+
+var (
+	maxResults          int
+	paymentsLinkPattern string
+)
+
+func init() {
+	maxResults = 20 // TODO make this configurable
+	paymentsLinkPattern = "/payments?from=%v&to=%v"
+}
 
 // PaymentsService represents a payments service
 // it defines the routes and the repo to operate
-// with
+// with. It inherits fields and functions from util.HttpService
 type PaymentsService struct {
-	// The database to operate with
+	HttpService
 	repo Repo
 }
 
-// New creates a new PaymentsService
-func New(repo Repo) *PaymentsService {
-	return &PaymentsService{repo: repo}
+// New creates a new PaymentsService with the given
+// repo and base url information
+func New(repo Repo, baseUrl string) *PaymentsService {
+	return &PaymentsService{
+		HttpService: HttpService{
+			BaseUrl: baseUrl,
+		},
+		repo: repo,
+	}
 }
 
 // Routes returns a router with all routes
@@ -37,21 +55,25 @@ func (s *PaymentsService) Routes() *chi.Mux {
 
 // List returns a list of payments. We return finite lists of payments
 // so we need to check the from and to query params, and make sure
-// they make sense
+// they make sense. If they are not set, we fallback to defaults.
 func (s *PaymentsService) List(w http.ResponseWriter, r *http.Request) {
 
 	// convert the from param
 	// into a integer or bad request
 	from, err := strconv.Atoi(r.URL.Query().Get("from"))
 	if err != nil {
-		HandleHttpError(w, r, http.StatusBadRequest, err)
+		// if it was not possible to parse the from
+		// param, then fallback to 0
+		from = 0
 	}
 
 	// convert the to param
 	// into a integer or bad request
 	to, err := strconv.Atoi(r.URL.Query().Get("to"))
 	if err != nil {
-		HandleHttpError(w, r, http.StatusBadRequest, err)
+		// if it was not possible to parse the to
+		// param, then fallback to maxResults
+		to = maxResults
 	}
 
 	limit := to - from
@@ -59,33 +81,42 @@ func (s *PaymentsService) List(w http.ResponseWriter, r *http.Request) {
 	// from has to be less than to
 	if limit <= 0 {
 		HandleHttpError(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	// limit results
-	if limit > 20 {
-		limit = 20
+	if limit > maxResults {
+		limit = maxResults
 	}
 
 	repoItems, err := s.repo.List(from, limit)
 	if err != nil {
 		HandleHttpError(w, r, http.StatusInternalServerError, err)
 		return
-	} else {
-		// Adapt repo data to payment data
-		payments, err := NewPaymentsFromRepoItems(repoItems)
-		if err != nil {
-			HandleHttpError(w, r, http.StatusInternalServerError, err)
-			return
-		}
-
-		links := NewLinks()
-
-		// Send back the response
-		RenderJSON(w, r, http.StatusOK, &PaymentsResponse{
-			Data:  payments,
-			Links: links,
-		})
 	}
+
+	// Adapt repo data to payment data
+	payments, err := NewPaymentsFromRepoItems(repoItems)
+	if err != nil {
+		HandleHttpError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	// render links
+	links := make(Links)
+	links["self"] = s.UrlFor(fmt.Sprintf(paymentsLinkPattern, from, to))
+	links["next"] = s.UrlFor(fmt.Sprintf(paymentsLinkPattern, to, to+limit))
+
+	if from >= limit {
+		links["prev"] = s.UrlFor(fmt.Sprintf(paymentsLinkPattern, from-limit, from))
+	}
+
+	// Send back the response
+	RenderJSON(w, r, http.StatusOK, &PaymentsResponse{
+		Data:  payments,
+		Links: links,
+	})
+
 }
 
 // Fetch a payment by id
@@ -120,9 +151,11 @@ func (s *PaymentsService) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// convert the version information
 	// into a integer or bad request
-	version, err := strconv.Atoi(r.URL.Query().Get("version"))
+	versionQP := strings.TrimSpace(r.URL.Query().Get("version"))
+	version, err := strconv.Atoi(versionQP)
 	if err != nil {
 		HandleHttpError(w, r, http.StatusBadRequest, err)
+		return
 	}
 
 	// Do a lookup in order to return a proper 404 if

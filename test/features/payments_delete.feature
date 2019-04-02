@@ -26,3 +26,9 @@ Feature: Delete payments
     When I delete version 0 of that payment
     Then I should have status code 409
 
+  Scenario: No version provided
+    Given I created a new payment with id abc
+    When I delete that payment, without saying which version
+    Then I should have status code 400
+    And I should have 1 payment(s)
+

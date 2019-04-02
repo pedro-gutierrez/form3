@@ -5,8 +5,8 @@ package logger
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -99,7 +99,7 @@ func NewHttpLogger() func(next http.Handler) http.Handler {
 			// Define our log function to be called in
 			// deferred mode, so that this gets logged even
 			// if a panic ocurrs
-			log := func() {
+			defer func() {
 
 				severity := "info"
 				if wrapper.status >= 500 {
@@ -118,9 +118,7 @@ func NewHttpLogger() func(next http.Handler) http.Handler {
 					// peer ip/port etc..
 
 				})
-			}
-
-			defer log()
+			}()
 			next.ServeHTTP(wrapper, r)
 		})
 	}
@@ -129,14 +127,12 @@ func NewHttpLogger() func(next http.Handler) http.Handler {
 // write is a convenience function that marshalls into json
 // or fallbacks to log.Printf
 func write(e interface{}) {
-	bytes, err := json.Marshal(e)
-	if err == nil {
-		log.Printf(string(bytes))
-	} else {
-		log.Printf("%v", e)
-	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetEscapeHTML(false)
+	enc.Encode(e)
 }
 
+// millis returns the current time in milliseconds
 func millis() int {
 	now := time.Now()
 	return int(now.UnixNano() / 1000000)

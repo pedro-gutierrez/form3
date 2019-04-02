@@ -52,6 +52,7 @@ func NewPaymentFromRepoItem(item *RepoItem) (*Payment, error) {
 		}
 	}
 	p.Attributes = attrs
+
 	return p, nil
 }
 
@@ -82,12 +83,8 @@ type PaymentResponse struct {
 	Data *Payment `json:"data"`
 }
 
+// A simple type to add restful links to our responses
 type Links map[string]string
-
-// NewLinks initializes a new set of links
-func NewLinks() Links {
-	return make(map[string]string)
-}
 
 // PaymentsResponse represents a http response that contains
 // a list of payments in its field 'data'
