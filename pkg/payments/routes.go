@@ -15,11 +15,13 @@ import (
 var (
 	maxResults          int
 	paymentsLinkPattern string
+	paymentLinkPattern  string
 )
 
 func init() {
 	maxResults = 20 // TODO make this configurable
 	paymentsLinkPattern = "/payments?from=%v&to=%v"
+	paymentLinkPattern = "/payment/%v"
 }
 
 // PaymentsService represents a payments service
@@ -102,7 +104,7 @@ func (s *PaymentsService) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// render links
+	// Render links
 	links := make(Links)
 	links["self"] = s.UrlFor(fmt.Sprintf(paymentsLinkPattern, from, to))
 	links["next"] = s.UrlFor(fmt.Sprintf(paymentsLinkPattern, to, to+limit))
@@ -139,9 +141,14 @@ func (s *PaymentsService) Fetch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Render links
+	links := make(Links)
+	links["self"] = s.UrlFor(fmt.Sprintf(paymentLinkPattern, id))
+
 	// Send back the response
 	RenderJSON(w, r, http.StatusOK, &PaymentResponse{
-		Data: p,
+		Data:  p,
+		Links: links,
 	})
 }
 
@@ -204,6 +211,13 @@ func (s *PaymentsService) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate the payment json
+	err = p.Validate()
+	if err != nil {
+		HandleHttpError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
 	// try to save it. The database
 	// will do whatever integrity checks are necessary
 	repoItem, err := p.ToRepoItem()
@@ -236,9 +250,13 @@ func (s *PaymentsService) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	links := make(Links)
+	links["self"] = s.UrlFor(fmt.Sprintf(paymentLinkPattern, p.Id))
+
 	// Everything went fine. Confirm back to the client
 	RenderJSON(w, r, http.StatusCreated, &PaymentResponse{
-		Data: p,
+		Data:  p,
+		Links: links,
 	})
 }
 
@@ -250,6 +268,13 @@ func (s *PaymentsService) Update(w http.ResponseWriter, r *http.Request) {
 		// Something is wrong with the JSON
 		// Translate this into a 400 Bad Request and finish
 		// the request
+		HandleHttpError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	// Validate the payment json
+	err = p.Validate()
+	if err != nil {
 		HandleHttpError(w, r, http.StatusBadRequest, err)
 		return
 	}
@@ -305,10 +330,15 @@ func (s *PaymentsService) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Render links
+	links := make(Links)
+	links["self"] = s.UrlFor(fmt.Sprintf(paymentLinkPattern, id))
+
 	// Everything went fine, Confirm by returning the payment
 	// back to the client
 	RenderJSON(w, r, http.StatusOK, &PaymentResponse{
-		Data: p,
+		Data:  p,
+		Links: links,
 	})
 }
 

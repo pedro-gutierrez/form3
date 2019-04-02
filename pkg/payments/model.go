@@ -2,18 +2,62 @@ package payments
 
 import (
 	"encoding/json"
+	"fmt"
 	. "github.com/pedro-gutierrez/form3/pkg/util"
 	"github.com/pkg/errors"
+	"strconv"
 	"strings"
 )
 
+// Payment attributes
+type PaymentAttributes struct {
+	Amount string `json:"amount"`
+}
+
+// Validate does semantic validation on the payment attributes
+func (pa *PaymentAttributes) Validate() error {
+
+	amount, err := strconv.ParseFloat(pa.Amount, 64)
+	if err != nil {
+		return errors.Wrap(err, "Invalid payment amount")
+	}
+
+	if amount <= 0 {
+		return fmt.Errorf("Payment amount must be positive")
+	}
+
+	return nil
+}
+
 // Payment a payment
 type Payment struct {
-	Id           string      `json:"id"`
-	Type         string      `json:"type"`
-	Version      int         `json:"version"`
-	Organisation string      `json:"organisation"`
-	Attributes   interface{} `json:"attributes"`
+	Id           string            `json:"id"`
+	Type         string            `json:"type"`
+	Version      int               `json:"version"`
+	Organisation string            `json:"organisation"`
+	Attributes   PaymentAttributes `json:"attributes"`
+}
+
+// Validate does semantic validation on the payment
+func (p *Payment) Validate() error {
+
+	// check the id is not empty
+	if len(strings.TrimSpace(p.Id)) == 0 {
+		return errors.New("Id is empty")
+	}
+
+	// check the type
+	if p.Type != "Payment" {
+		return fmt.Errorf("Invalid type: %s", p.Type)
+	}
+
+	// check the organisation
+	if len(strings.TrimSpace(p.Organisation)) == 0 {
+		return errors.New("Organisation is empty")
+	}
+
+	// check the attributes
+	return p.Attributes.Validate()
 }
 
 // Converts a payment into something that
@@ -44,7 +88,7 @@ func NewPaymentFromRepoItem(item *RepoItem) (*Payment, error) {
 	}
 
 	// decode the attributes payload
-	var attrs map[string]interface{}
+	var attrs PaymentAttributes
 	if item.Attributes != "" {
 		err := json.NewDecoder(strings.NewReader(item.Attributes)).Decode(&attrs)
 		if err != nil {
@@ -78,16 +122,17 @@ type PaymentRequest struct {
 }
 
 // PaymentResponse represents a http response that contains
-// a payment in its field 'data'
+// a payment in its field 'data' and set of links
 type PaymentResponse struct {
-	Data *Payment `json:"data"`
+	Data  *Payment `json:"data"`
+	Links Links    `json:"links"`
 }
 
 // A simple type to add restful links to our responses
 type Links map[string]string
 
 // PaymentsResponse represents a http response that contains
-// a list of payments in its field 'data'
+// a list of payments in its field 'data' and a set of links
 type PaymentsResponse struct {
 	Data  []*Payment `json:"data"`
 	Links Links      `json:"links"`

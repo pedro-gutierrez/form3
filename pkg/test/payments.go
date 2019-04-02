@@ -186,12 +186,36 @@ func (w *World) ThatJsonShouldHaveA(path string) error {
 }
 
 // APaymentWithId defines a new payment in the current scenario context
-// with the given client defined id
+// with the given id, and default values for the organisation and amount
 func (w *World) APaymentWithId(id string) error {
+	w.Data.PaymentData = &PaymentData{
+		Id:           id,
+		Version:      0,
+		Organisation: "org1",
+		Amount:       "1.00",
+	}
+	return nil
+}
+
+// APaymentWithIdNoOrganisation defines a new payment in the current scenario context
+// with the given id, but no organisation set
+func (w *World) APaymentWithIdNoOrganisation(id string) error {
 	w.Data.PaymentData = &PaymentData{
 		Id:      id,
 		Version: 0,
 		Amount:  "1.00",
+	}
+	return nil
+}
+
+// APaymentWithIdAmount defines a new payment in the current scenario context
+// with the given id and amount
+func (w *World) APaymentWithIdAmount(id string, amount string) error {
+	w.Data.PaymentData = &PaymentData{
+		Id:           id,
+		Version:      0,
+		Organisation: "org1",
+		Amount:       amount,
 	}
 	return nil
 }

@@ -84,6 +84,8 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I get payments (\d+) to (\d+)$`, w.IGetPaymentsFromTo)
 	s.Step(`^I get payments without from/to$`, w.IGetPaymentsWithoutFromTo)
 	s.Step(`^a payment with id (.*)$`, w.APaymentWithId)
+	s.Step(`^a payment with id (.*), no organisation$`, w.APaymentWithIdNoOrganisation)
+	s.Step(`^a payment with id (.*), amount (.*)$`, w.APaymentWithIdAmount)
 	s.Step(`^I create that payment$`, w.ICreateThatPayment)
 	s.Step(`^I update that payment$`, w.IUpdateThatPayment)
 	s.Step(`^I delete that payment$`, w.IDeleteThatPayment)
