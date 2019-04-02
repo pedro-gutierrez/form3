@@ -25,20 +25,21 @@ import (
 )
 
 var (
-	listen         *string
-	limit          *string
-	httpLogs       *bool
-	compress       *bool
-	metrics        *bool
-	repoDriver     *string
-	repoUri        *string
-	repoMigrations *string
-	enableCors     *bool
-	timeout        *int
-	adminRoutes    *bool
-	profiling      *bool
-	apiVersion     *string
-	externalUrl    *string
+	listen             *string
+	limit              *string
+	httpLogs           *bool
+	compress           *bool
+	metrics            *bool
+	repoDriver         *string
+	repoUri            *string
+	repoMigrations     *string
+	repoSchemaPayments *string
+	enableCors         *bool
+	timeout            *int
+	adminRoutes        *bool
+	profiling          *bool
+	apiVersion         *string
+	externalUrl        *string
 )
 
 func init() {
@@ -52,6 +53,7 @@ func init() {
 	repoDriver = flag.String("repo", "sqlite3", "type of persistence repository to use, eg. sqlite3, postgres")
 	repoUri = flag.String("repo-uri", "", "repo specific connection string")
 	repoMigrations = flag.String("repo-migrations", "", "path to database migrations")
+	repoSchemaPayments = flag.String("repo-schema-payments", "payments", "the table or schema where we store payments")
 	adminRoutes = flag.Bool("admin", false, "enable admin endpoints")
 	profiling = flag.Bool("profiling", false, "enable profiling")
 	apiVersion = flag.String("api-version", "v1", "api version to expose our services at")
@@ -68,21 +70,29 @@ func main() {
 
 	// Setup our persistence. We do this first, since we want to exit
 	// the program, in case the database is not available
-	repo, err := util.NewRepo(util.RepoConfig{
+	paymentsRepo, err := util.NewRepo(util.RepoConfig{
 		Driver:     *repoDriver,
 		Uri:        *repoUri,
 		Migrations: *repoMigrations,
+		Schema:     *repoSchemaPayments,
 	})
 
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "Could not setup repo"))
+		log.Fatal(errors.Wrap(err, "Could not create repo"))
+	}
+
+	// Initialize the repo. The implementation
+	// can perform prep work here
+	err = paymentsRepo.Init()
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Could not init repo"))
 	}
 
 	// Make sure we close the database on exit
-	defer repo.Close()
+	defer paymentsRepo.Close()
 
 	// Stop here if the repo is not ready
-	if err := repo.Check(); err != nil {
+	if err := paymentsRepo.Check(); err != nil {
 		log.Fatal(errors.Wrap(err, "Could connect to the repo"))
 	}
 
@@ -155,14 +165,14 @@ func main() {
 	}
 
 	// Mount health probe
-	router.Mount("/health", health.New(repo).Routes())
+	router.Mount("/health", health.New(paymentsRepo).Routes())
 
 	// Admin features
 	// (useful for testing, for example, but use with care in a production
 	// environment
 	if *adminRoutes {
 		router.Route("/admin", func(adminRouter chi.Router) {
-			adminRouter.Mount("/", admin.New(repo).Routes())
+			adminRouter.Mount("/", admin.New(paymentsRepo).Routes())
 		})
 	}
 
@@ -170,7 +180,7 @@ func main() {
 	router.Route("/v1", func(v1Router chi.Router) {
 
 		// payments api
-		v1Router.Mount("/", payments.New(repo, baseUrl).Routes())
+		v1Router.Mount("/", payments.New(paymentsRepo, baseUrl).Routes())
 
 		// more endpoints here...
 	})

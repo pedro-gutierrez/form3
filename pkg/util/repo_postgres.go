@@ -27,6 +27,9 @@ func NewPostgresRepo(config RepoConfig) (Repo, error) {
 	// Create a new db struct that holds all the
 	// configuration
 	repo := &PosgresRepo{
+		SqlRepo: SqlRepo{
+			schema: config.Schema,
+		},
 		uri: config.Uri,
 	}
 

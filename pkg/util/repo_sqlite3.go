@@ -33,6 +33,9 @@ func NewSqlite3Repo(config RepoConfig) (Repo, error) {
 	// Create a new db struct that holds all the
 	// configuration
 	repo := &Sqlite3Repo{
+		SqlRepo: SqlRepo{
+			schema: config.Schema,
+		},
 		backend: backend,
 	}
 

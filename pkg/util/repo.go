@@ -27,12 +27,17 @@ type RepoConfig struct {
 	Driver     string
 	Uri        string
 	Migrations string
+	Schema     string
 }
 
 // Repo is a small abstraction of a database
 // so that we can easily switch between vendors or even
 // storage technology
 type Repo interface {
+
+	// Init initializes the repo.
+	Init() error
+
 	// A simple description, for logging
 	// purposes
 	Description() string

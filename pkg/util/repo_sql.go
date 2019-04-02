@@ -12,6 +12,30 @@ import (
 )
 
 var (
+	countStmtTemplate     string
+	deleteAllStmtTemplate string
+	listStmtTemplate      string
+	fetchStmtTemplate     string
+	createStmtTemplate    string
+	updateStmtTemplate    string
+	deleteOneStmtTemplate string
+)
+
+func init() {
+	countStmtTemplate = "SELECT COUNT(*) FROM %s WHERE deleted = 0"
+	deleteAllStmtTemplate = "DELETE FROM %s"
+	listStmtTemplate = "SELECT id, version, organisation, attributes FROM %s  WHERE deleted = 0 LIMIT $1 OFFSET $2"
+	fetchStmtTemplate = "SELECT id, version, organisation, attributes FROM %s WHERE id = $1 AND deleted = 0"
+	createStmtTemplate = "INSERT INTO %s (id, version, organisation, attributes) VALUES ($1, $2, $3, $4)"
+	updateStmtTemplate = "UPDATE %s SET attributes=$1, version=$2 WHERE id=$3 AND version=$4"
+	deleteOneStmtTemplate = "UPDATE %s SET deleted=1 WHERE id=$1 AND version=$2"
+}
+
+// A Generic SQL rep. Defines the schema it operates on (a database table)
+// and the set of sql statement it executes
+type SqlRepo struct {
+	db            *sql.DB
+	schema        string
 	countStmt     string
 	deleteAllStmt string
 	listStmt      string
@@ -19,21 +43,28 @@ var (
 	createStmt    string
 	updateStmt    string
 	deleteOneStmt string
-)
-
-func init() {
-	countStmt = "SELECT COUNT(*) FROM payments WHERE deleted = 0"
-	deleteAllStmt = "DELETE FROM payments"
-	listStmt = "SELECT id, version, organisation, attributes FROM payments WHERE deleted = 0 LIMIT $1 OFFSET $2"
-	fetchStmt = "SELECT id, version, organisation, attributes FROM payments WHERE id = $1 AND deleted = 0"
-	createStmt = "INSERT INTO payments (id, version, organisation, attributes) VALUES ($1, $2, $3, $4)"
-	updateStmt = "UPDATE payments SET attributes=$1, version=$2 WHERE id=$3 AND version=$4"
-	deleteOneStmt = "UPDATE payments SET deleted=1 WHERE id=$1 AND version=$2"
 }
 
-// A Generic SQL repo
-type SqlRepo struct {
-	db *sql.DB
+// fmtTemplate formats the given template and returns a statement sql
+// configured for the schema (database table) in this sql repo
+func (repo *SqlRepo) fmtTemplate(tpl string) string {
+	return fmt.Sprintf(tpl, repo.schema)
+}
+
+// Init initializes all sql statements with the proper database table
+func (repo *SqlRepo) Init() error {
+	if repo.schema == "" {
+		return fmt.Errorf("no schema defined")
+	}
+
+	repo.countStmt = repo.fmtTemplate(countStmtTemplate)
+	repo.deleteAllStmt = repo.fmtTemplate(deleteAllStmtTemplate)
+	repo.listStmt = repo.fmtTemplate(listStmtTemplate)
+	repo.fetchStmt = repo.fmtTemplate(fetchStmtTemplate)
+	repo.createStmt = repo.fmtTemplate(createStmtTemplate)
+	repo.updateStmt = repo.fmtTemplate(updateStmtTemplate)
+	repo.deleteOneStmt = repo.fmtTemplate(deleteOneStmtTemplate)
+	return nil
 }
 
 // Close the database
@@ -51,9 +82,9 @@ func (repo *SqlRepo) Check() error {
 func (repo *SqlRepo) List(offset int, limit int) ([]*RepoItem, error) {
 	items := []*RepoItem{}
 
-	rows, err := repo.db.Query(listStmt, limit, offset)
+	rows, err := repo.db.Query(repo.listStmt, limit, offset)
 	if err != nil {
-		return items, errors.Wrap(err, listStmt)
+		return items, errors.Wrap(err, repo.listStmt)
 	}
 
 	defer rows.Close()
@@ -75,9 +106,9 @@ func (repo *SqlRepo) List(offset int, limit int) ([]*RepoItem, error) {
 func (repo *SqlRepo) Fetch(item *RepoItem) (*RepoItem, error) {
 	found := &RepoItem{}
 
-	rows, err := repo.db.Query(fetchStmt, item.Id)
+	rows, err := repo.db.Query(repo.fetchStmt, item.Id)
 	if err != nil {
-		return found, errors.Wrap(err, fetchStmt)
+		return found, errors.Wrap(err, repo.fetchStmt)
 	}
 
 	defer rows.Close()
@@ -99,9 +130,9 @@ func (repo *SqlRepo) Fetch(item *RepoItem) (*RepoItem, error) {
 
 // Create a new item in the database
 func (repo *SqlRepo) Create(item *RepoItem) (*RepoItem, error) {
-	stmt, err := repo.db.Prepare(createStmt)
+	stmt, err := repo.db.Prepare(repo.createStmt)
 	if err != nil {
-		return item, errors.Wrap(err, createStmt)
+		return item, errors.Wrap(err, repo.createStmt)
 	}
 
 	defer stmt.Close()
@@ -132,9 +163,9 @@ func (repo *SqlRepo) Create(item *RepoItem) (*RepoItem, error) {
 // Update an existing item in the database. Returns the updated
 // db item, or an error
 func (repo *SqlRepo) Update(item *RepoItem) (*RepoItem, error) {
-	stmt, err := repo.db.Prepare(updateStmt)
+	stmt, err := repo.db.Prepare(repo.updateStmt)
 	if err != nil {
-		return item, errors.Wrap(err, updateStmt)
+		return item, errors.Wrap(err, repo.updateStmt)
 	}
 
 	defer stmt.Close()
@@ -179,9 +210,9 @@ func (repo *SqlRepo) Update(item *RepoItem) (*RepoItem, error) {
 // We simply mark the item as deleted. This is to make sure
 // it's id is not reused by future payments
 func (repo *SqlRepo) Delete(item *RepoItem) error {
-	stmt, err := repo.db.Prepare(deleteOneStmt)
+	stmt, err := repo.db.Prepare(repo.deleteOneStmt)
 	if err != nil {
-		return errors.Wrap(err, deleteOneStmt)
+		return errors.Wrap(err, repo.deleteOneStmt)
 	}
 
 	defer stmt.Close()
@@ -238,9 +269,9 @@ func (repo *SqlRepo) IsNotFound(err error) bool {
 // DeleteAll hard delete all items. This operation cannot
 // be recovered, so use with care
 func (repo *SqlRepo) DeleteAll() error {
-	stmt, err := repo.db.Prepare(deleteAllStmt)
+	stmt, err := repo.db.Prepare(repo.deleteAllStmt)
 	if err != nil {
-		return errors.Wrap(err, deleteAllStmt)
+		return errors.Wrap(err, repo.deleteAllStmt)
 	}
 
 	defer stmt.Close()
@@ -261,16 +292,16 @@ func (repo *SqlRepo) Info() (RepoInfo, error) {
 	var count int
 	var info RepoInfo
 
-	rows, err := repo.db.Query(countStmt)
+	rows, err := repo.db.Query(repo.countStmt)
 	if err != nil {
-		return info, errors.Wrap(err, countStmt)
+		return info, errors.Wrap(err, repo.countStmt)
 	}
 
 	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&count)
 		if err != nil {
-			return info, errors.Wrap(err, countStmt)
+			return info, errors.Wrap(err, repo.countStmt)
 		}
 		break
 	}
