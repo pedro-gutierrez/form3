@@ -28,16 +28,15 @@ Feature: Create payments
     And that json should have string at data.id equal to abc
     And that json should have int at data.version equal to 0
     
-  @wip
   Scenario: Payment without an organisation
-    Given a payment with id abc, no organisation
+    Given a payment without organisation, and id abc
     When I create that payment
     Then I should have status code 400
     And I should have 0 payment(s)
-
+    
   @wip
   Scenario: Payment with a negative amount
-    Given a payment with id abc, amount -5.00
+    Given a payment with id abc and amount -5.00
     When I create that payment
     Then I should have status code 400
     And I should have 0 payment(s)

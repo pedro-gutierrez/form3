@@ -3,7 +3,6 @@ Feature: Health
   As a site reliability manager
   I need to query a health check endpoint on my service
     
-  @wip
   Scenario: Service is up
     When I query the health endpoint
     Then I should have status code 200

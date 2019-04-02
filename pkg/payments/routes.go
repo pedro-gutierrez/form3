@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	. "github.com/pedro-gutierrez/form3/pkg/util"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -210,6 +211,8 @@ func (s *PaymentsService) Create(w http.ResponseWriter, r *http.Request) {
 		HandleHttpError(w, r, http.StatusBadRequest, err)
 		return
 	}
+
+	log.Printf("payment: %v", p)
 
 	// Validate the payment json
 	err = p.Validate()

@@ -167,7 +167,9 @@ func (w *World) ThatJsonShouldHaveItems(expected int) error {
 		return ExpectThen(ShouldBeNil(err), func() error {
 			var items []interface{}
 			return ExpectThen(ShouldEqual(reflect.TypeOf(actual), reflect.TypeOf(items)), func() error {
-				items = actual.([]interface{})
+				items =
+
+					actual.([]interface{})
 				return Expect(ShouldEqual(len(items), expected))
 			})
 		})
