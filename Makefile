@@ -11,10 +11,6 @@ run-with-sqlite3:
 docker-build:
 	@docker build -t pedrogutierrez/form3:latest .
 
-# Run a docker compose service
-docker-up:
-	@docker-compose up
-
 # Run all BDD scenarios
 bdd:
 	@cd test; godog; cd ..
