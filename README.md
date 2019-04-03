@@ -123,7 +123,7 @@ The application server follows a conventional layered architecture with a:
 
 ## Request-Response cycle
 
-The following diagrams depics a basic request-response cycle:
+The following diagram depics a basic request-response cycle:
 
 ```sequence
 Client->Router: POST /v1/payments
@@ -153,13 +153,13 @@ In this diagram:
 
 In this version, we manage a very simple data model, in which a Payment has the following properties:
 
-| Property     | Type              | Constraints                          |
-| ------------ | ----------------- | ------------------------------------ |
-| Id           | String            | Globally unique, non-empty           |
-| Version      | Int               | Positive integer                     |
-| Type         | String            | Constant, hardcoded to ```Payment``` |
-| Organisation | String            | Non-empty                            |
-| Attributes   | PaymentAttributes | Non-null                             |
+| Property     | Type              | Constraints                                                  |
+| ------------ | ----------------- | ------------------------------------------------------------ |
+| Id           | String            | Globally unique, non-empty                                   |
+| Version      | Int               | Positive integer                                             |
+| Type         | String            | Constant, hardcoded to ```Payment```                         |
+| Organisation | String            | Non-empty. Serializes to the json field ```organisation_id``` |
+| Attributes   | PaymentAttributes | Non-null                                                     |
 
 The PaymentAttributes type defines the additional data we manage about a payment:
 
