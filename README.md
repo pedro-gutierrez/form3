@@ -13,50 +13,27 @@
 The makefile provides with two targets you can run in order to get dependencies and run the main program from your host machine:
 
 ```
-make deps
-make run-with-sqlite3
+make sqlite3
 ```
 
-This will run the server using an in-memory Sqlite3 store by default 
+This will run the server at http://localhost:8080/ using an in-memory Sqlite3 store by default.
 
 ### From Docker
 
-There is a pre-packaged docker image you can run:
+There is a pre-packaged docker image you can run too:
 
 ```
 docker run --name form3 -p 8080:8080 pedrogutierrez/form3:latest
 ```
 
-or by doing:
-
-```
-make docker-run
-```
-
-This will download the docker image and start the the api server running against an in-memory Sqlite3 store by default.
+This will download the docker image and start the the api server also against Sqlite3, by default.
 
 ## Switching to Postgres
 
-By default, the application is configured to run against an in-memory Sqlite3 database. This is convenient during development in order to run BDD's but it is easy to switch to a bigger database. First, startup a Postgres node from docker:
+The provided ```docker-compose.yml``` file starts both postgres and our server in a single service:
 
 ```
-make postgres-start
-```
-
-This will run Postgres inside docker and will also create a dedicated user and a database, both named **form3**.
-
-You can connect to the SQL console by running:
-
-```
-make postgres-connect
-```
-
-in order to ensure everything is properly setup.
-
-Then, you can run our payments application against this Postgres instance, by running:
-
-```
-make run-with-postgres
+docker-compose up
 ```
 
 ## Running the tests
@@ -67,7 +44,7 @@ Once the server is running, you can easily run all BDD scenarios:
 make bdd
 ```
 
-Alternatively you can run only those BDD scenarios that are tagged with the **@wip** tag (useful during development:
+Alternatively you can run only those BDD scenarios that are tagged with the ```@wip``` tag (useful during development):
 
 ```
 make bdd-wip
@@ -77,9 +54,13 @@ make bdd-wip
 
 The following sections provide with a high level description of the API. For more detail, please refer to the OpenApi 3.0 schema located at `api/openapi.yml`. 
 
+Note:
+
+- In the spec, the endpoints ```/health``` and ```/metrics``` are documented as part of the ```v1``` version, however in the implementation I finally decided to move them one level up (i.e. they don't have a version prefix).
+
 ## Content types
 
-All endpoints accept and return ```application/json``` content-type, expect the ```/metrics``` endpoint, which only returns ```text/plain```. 
+All endpoints accept and return ```application/json``` content-type, except the ```/metrics``` endpoint, which only returns ```text/plain```. 
 
 ## Application endpoints
 
@@ -93,7 +74,7 @@ All endpoints accept and return ```application/json``` content-type, expect the 
 
 ## Admin endpoints
 
-The admin endpoints are used in BDDs. They can be enabled/disabled using the ```—admin=true|false``` command line flag:
+The admin endpoints are used in BDDs. They can be enabled/disabled using the ```-admin``` command line flag:
 
 |      | Path        | Method | Description                                         |
 | ---- | ----------- | ------ | --------------------------------------------------- |
@@ -136,9 +117,9 @@ The following table summarizes the HTTP status codes returned by the application
 The application server follows a conventional layered architecture with a:
 
 - A web layer, with the following features:
-  - A pluggable, hierarchical **router** so that we can add new versions of the api, and keep backwards compatibility with existing old clients
+  - A pluggable, hierarchical **router** so that we can add new api versions in the future, and still keep backwards compatibility with old clients
   - A set of **middleware** that perform common concerns such as **logging**, **rate-limiting**, **supervision** against panics, content-type validation, cache management, response headers customizations, etc..
-- A persistence layer, abstracted by the concept of a **Repo**, in order to decouple our application behaviour from a particular storage tecnology. 
+- A persistence layer, abstracted by the concept of a **Repo**, that decouples our application behaviour from a particular storage technology. 
 
 ## Request-Response cycle
 
@@ -189,14 +170,17 @@ The PaymentAttributes type defines the additional data we manage about a payment
 Notes:
 
 - I am **intentionally** **skipping** any other validations or parsing on the internal structure of the attributes payload. 
+- Implementation details are in package ```gitHub.com/pedro-gutierrez/form3/pkg/payments```.
 
 # Authentication
 
 We are not covering authentication/authorization. All requests are anonymous. 
 
+Admin endpoints are also anonymous, however they can be disabled via the ```-admin``` command line flag.
+
 # Logging
 
-Package ```github.com/pedro-gutierrez/form3/pkg/logger``` introduces a structured logger that outputs JSON formatted log entrys to standard out. This way:
+Package ```github.com/pedro-gutierrez/form3/pkg/logger``` introduces a structured logger that outputs JSON formatted log entries to the standard output. This way:
 
 - We support distributed, elastic deployments, such as Kubernetes, where we could have many replicas of our service running side to side. We leave the orchestrator the task to collect logs from all pods and centralize their management.
 - By being JSON, it will be easier to consume log entries and aggregate them, using tools such as Elasticsearch/Kibana.
@@ -210,7 +194,7 @@ Package ```github.com/pedro-gutierrez/form3/pkg/test``` provides with:
 - A customized HTTP client, specifically designed to execute HTTP requests and capture reponses and errors, for further assertions in step definitions.
 - A shared scenario context, defined by the concept of ```World```.
 - A fluent expectation and assertions api, that relies on ```smartystreets/assertions``` and ```mdaverde/jsonpath```.  
-- A rich collection of compact, composable step definitions, designed so they can be easily reused in order to design more advanced and refined feature scenarios quickly and with very little extra coding effort.
+- A rich collection of compact, composable step definitions, designed so they can be easily reused, in order to design more advanced and refined feature scenarios quickly, and with very little extra coding effort.
 
 # Persistence
 
@@ -230,7 +214,7 @@ We then provide two implementations:
 
 With this design, it is easy to switch, out of the box, from Sqlite3 to Postgres (please see the ```—repo-xxx``` command line flags and the provided Makefile for more info and usage examples).
 
-In theory, it should straightforward to plug new, NoSQL alternative implementations (eg. MongoRepo, RedisRepo).
+It should straightforward to extend the system with alternative NoSQL implementations (eg. MongoRepo, RedisRepo).
 
 ## Concurrency
 
@@ -242,36 +226,26 @@ Repo->Client A: 1
 Client B->Repo: getVersion
 Repo->Client B: 1
 Client A->Repo: update where version = 1
-Repo->Client A: ok
+Repo->Client A: 1 row affected
 Client B->Repo: update where version = 1
-Repo->Client B: error
+Repo->Client B: 0 rows affected
 ```
 
 In the diagram above:
 
 - Clients A and B try to update the same document, concurrently, from different goroutines. They both fetch the current version in the store. In this example, they both obtain version equal to 1:
-
-```
-SELECT version FROM payments WHERE id = ?
-```
-
 - In order to update the document's data, they both increase their version number on their side, as well as the payload, then issue a transaction similar to:
-
-
-```
-UPDATE payments SET version=2, data=... WHERE id=? AND version=1
-```
-
 - From client A's perspective, one row was affected by the update and the operation is considered to be successful. We rely on the data store's **ACID** **semantics** in order to ensure one of the concurrent updates succeeds.
-- From client B's perspective, by the time its update statement is applied, no version 2 exists for that document.  The number of affected rows is zero, therefore the update is discarded and treated as an error.  The error will be reported back to the client, who will need to retry (if pertinent) with the most up to date version from the read store.  
+
+- From client B's perspective, by the time its update statement is applied, version 1 no longer exists. The number of affected rows is zero, therefore the update is discarded and treated as an error.  The error will be reported back to the client, who will need to fetch the most recent version of the payment and retry the update.
 
 # Monitoring
 
-We provide the ability to turn on, and expose Prometheus based metrics. This will give useful information about Go's runtime performance and also will give HTTP request/reponse statistics (method, paths, return codes). 
+We provide the ability to turn on, and expose Prometheus based metrics. This will give useful information about Go's runtime performance and also will give HTTP request/reponse statistics (method, paths, return codes, etc..). 
 
 # Resiliency
 
-- We provide a simple liveliness probe that checks the connectivity to the repo and returns a ```503 Service unavailable``` status code as soon it can no longer be reached. This should instruct the orchestrator (eg. Kubernetes) to stop sending trafic to the offending pod or even to shut it down if necessary.
+- We provide a simple liveliness probe that checks the connectivity to the repo and returns a ```503 Service unavailable``` status code as soon it can no longer be reached. This should instruct the orchestrator (eg. Kubernetes) to stop sending traffic to the offending pod or even to shut it down if necessary.
 
 - Our SQLRepo implementation relies on Go's standard sql package. This allows us to rely on the default connection pooling and automatically recover from connection loss from the database.
 

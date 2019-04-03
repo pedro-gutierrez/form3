@@ -9,9 +9,14 @@ import (
 	"strings"
 )
 
-// Payment attributes
+// Payment attributes captures all detaled information
+// about a payment. Here we are only capturing the Amount, for convenience,
+// and we're leaving out the rest.
 type PaymentAttributes struct {
 	Amount string `json:"amount"`
+
+	// TODO: add support for the rest of payment data
+	// eg. beneficiary_party, charges_information, etc..
 }
 
 // Validate does semantic validation on the payment attributes
@@ -34,7 +39,7 @@ type Payment struct {
 	Id           string            `json:"id"`
 	Type         string            `json:"type"`
 	Version      int               `json:"version"`
-	Organisation string            `json:"organisation"`
+	Organisation string            `json:"organisation_id"`
 	Attributes   PaymentAttributes `json:"attributes"`
 }
 

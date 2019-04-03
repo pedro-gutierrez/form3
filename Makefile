@@ -4,11 +4,11 @@ deps:
 
 # Run the app locally, using memory
 # storage, enabling the admin apis and exposing prometheus metrics
-run-with-sqlite3:
+sqlite3: deps
 	@go run cmd/main.go --metrics=true --admin=true
 
 # Build a new docker image
-docker-build:
+docker:
 	@docker build -t pedrogutierrez/form3:latest .
 
 # Run all BDD scenarios

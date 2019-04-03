@@ -71,7 +71,7 @@ func (p *PaymentData) ToJSON() string {
 			"id": "%s",
 			"type": "Payment",
 			"version": %v,
-			"organisation": "%s",
+			"organisation_id": "%s",
 			"attributes": {
 				"amount": "%s"
 			}

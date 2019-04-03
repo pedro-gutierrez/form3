@@ -1,9 +1,9 @@
 openapi: 3.0.0
 info:
   title: Form3 Payments API
-  version: 1.0.0
+  version: v1
 servers:
-  - url: 'http://localhost:8080/v1'
+  - url: 'http://localhost:8080'
 paths:
   /health:
     get:
@@ -244,18 +244,9 @@ components:
           schema:
             type: string
   schemas:
-    ErrorCode:
-      type: string
-      enum:
-        - database_error
-        - too_many_requests
-        - unknown_error
     Error:
-      properties:
-        code:
-          $ref: '#/components/schemas/ErrorCode'
-        description:
-          type: string
+      type: object
+      properties: {}
     Health:
       properties:
         status:
@@ -271,6 +262,8 @@ components:
         - Payment
     Version:
       type: integer
+    Amount:
+      type: string
     Payments:
       type: array
       items:
@@ -286,7 +279,11 @@ components:
         version:
           $ref: '#/components/schemas/Version'
         attributes:
-          type: object
+          $ref: '#/components/schemas/PaymentAttributes'
+    PaymentAttributes:
+      properties:
+        amount:
+          $ref: '#/components/schemas/Amount'
     Links:
       type: array
       items:
